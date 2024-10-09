@@ -1,4 +1,6 @@
 import { ICommonObject, IMultiModalOption, IndexingResult, INode, INodeData, INodeOptionsValue, INodeOutputsValue, INodeParams } from '../../../src/Interface'
+import { ChatNemoGuardrailsInput } from './ChatNemoGuardrailsInput'
+import { ChatNemoGuardrailsModel } from './ChatNemoGuardrailsModel'
 
 
 class ChatNemoGuardrails implements INode {
@@ -46,10 +48,15 @@ class ChatNemoGuardrails implements INode {
         const configId = nodeData.inputs?.configId
         const baseUrl = nodeData.inputs?.baseUrl
 
-        const obj = {
-            configId,
-            baseUrl
+
+        const obj: Partial<ChatNemoGuardrailsInput> = {
+            configurationId: configId,
+            baseUrl: baseUrl
         }
+
+        //const model = new ChatNemoGuardrailsModel({ id: nodeData.id, fields: obj })
+        const model = new ChatNemoGuardrailsModel( obj )
+        return model
 
     }   
 
