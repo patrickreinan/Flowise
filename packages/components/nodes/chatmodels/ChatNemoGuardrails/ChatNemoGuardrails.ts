@@ -50,11 +50,11 @@ class ChatNemoGuardrailsModel extends BaseChatModel<ChatNemoGuardrailsCallOption
         
         async function result(client: NemoClient) :  Promise<ChatResult> {
 
-          
+          const message = await client.chat();
 
             const nonChunkMessage = new AIMessage({
                 id: "id",
-                content: messages[0].content,
+                content: message,
                 tool_calls: [],
               });
 
