@@ -1,89 +1,70 @@
-import { ICommonObject, IMultiModalOption, IndexingResult, INode, INodeData, INodeOptionsValue, INodeOutputsValue, INodeParams } from '../../../src/Interface'
-import { BaseChatModel, type BaseChatModelParams } from "@langchain/core/language_models/chat_models";
-import { AIMessage, AIMessageChunk, BaseMessage } from "@langchain/core/messages";
-import { CallbackManager, CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
-import { ChatGeneration, ChatResult } from "@langchain/core/outputs";
-import { FailedAttemptHandler } from "@langchain/core/utils/async_caller";
-import { BaseChatModelCallOptions } from "@langchain/core/language_models/chat_models";
-import { getBaseClasses, getCredentialData, getCredentialParam } from '../../../src/utils'
-import { ClientConfig, NemoClient } from './NemoClient';
+import { BaseChatModel, type BaseChatModelParams } from '@langchain/core/language_models/chat_models'
+import { AIMessageChunk, BaseMessage } from '@langchain/core/messages'
+import { BaseChatModelCallOptions } from '@langchain/core/language_models/chat_models'
+import { NemoClient } from './NemoClient'
+import { CallbackManager, CallbackManagerForLLMRun } from '@langchain/core/callbacks/manager'
+import { ChatResult } from '@langchain/core/outputs'
+import { FailedAttemptHandler } from '@langchain/core/utils/async_caller'
+import { getBaseClasses, ICommonObject, INode, INodeData, INodeParams } from '../../../src'
 
 export interface ChatNemoGuardrailsCallOptions extends BaseChatModelCallOptions {
     /**
      * An array of strings to stop on.
      */
-    stop?: string[];
-
+    stop?: string[]
 }
 
-
 export interface ChatNemoGuardrailsInput extends BaseChatModelParams {
-
-    configurationId?: string;
+    configurationId?: string
     /**
-     * The host URL of the Ollama server.
+     * The host URL of the Nemo server.
      * @default "http://localhost:8000"
      */
-    baseUrl?: string;
-    
+    baseUrl?: string
 }
 
 class ChatNemoGuardrailsModel extends BaseChatModel<ChatNemoGuardrailsCallOptions, AIMessageChunk> implements ChatNemoGuardrailsInput {
-    
-	configurationId: string;
-	id: string;
-	baseUrl: string;
-	callbackManager?: CallbackManager | undefined;
-	maxConcurrency?: number | undefined;
-	maxRetries?: number | undefined;
-	onFailedAttempt?: FailedAttemptHandler | undefined;
-    client: NemoClient;
-    
+    configurationId: string
+    id: string
+    baseUrl: string
+    callbackManager?: CallbackManager | undefined
+    maxConcurrency?: number | undefined
+    maxRetries?: number | undefined
+    onFailedAttempt?: FailedAttemptHandler | undefined
+    client: NemoClient
 
     _llmType(): string {
         // Add your implementation here
-        return "nemo-guardrails";
+        return 'nemo-guardrails'
     }
 
     _generate(messages: BaseMessage[], options: this['ParsedCallOptions'], runManager?: CallbackManagerForLLMRun): Promise<ChatResult> {
-
-        
-        async function result(client: NemoClient) :  Promise<ChatResult> {
-
-          const message = await client.chat();
-
-            const nonChunkMessage = new AIMessage({
-                id: "id",
-                content: message,
-                tool_calls: [],
-              });
-
-              
-      return {
-            generations: [
-              {
-                text: "text",
-                message: nonChunkMessage,
-              },
-            ],
-          };
+        const generate = async (messages: BaseMessage[], client: NemoClient): Promise<ChatResult> => {
+            const chatMessages = await client.chat(messages)
+            const generations = chatMessages.map((message) => {
+                return {
+                    text: '',
+                    message
+                }
+            })
+            return {
+                generations
+            }
         }
-        return result(this.client);
-        
+        return generate(messages, this.client)
     }
-	
 
-	constructor({ id, fields }: { id: string; fields: Partial<ChatNemoGuardrailsInput> & BaseChatModelParams; }) {
-		super(fields);
-		this.id = id;
-		this.configurationId = fields.configurationId ?? '';
-		this.baseUrl = fields.baseUrl ?? '';
-		this.callbackManager = fields.callbackManager;
-		this.maxConcurrency = fields.maxConcurrency;
-		this.maxRetries = fields.maxRetries;
-		this.onFailedAttempt = fields.onFailedAttempt;
+    constructor({ id, fields }: { id: string; fields: Partial<ChatNemoGuardrailsInput> & BaseChatModelParams }) {
+        super(fields)
+        this.id = id
+        this.configurationId = fields.configurationId ?? ''
+        this.baseUrl = fields.baseUrl ?? ''
+        this.callbackManager = fields.callbackManager
+        this.maxConcurrency = fields.maxConcurrency
+        this.maxRetries = fields.maxRetries
+        this.onFailedAttempt = fields.onFailedAttempt
         this.client = new NemoClient(this.baseUrl, this.configurationId)
-	}
+    }
 }
 
 class ChatNemoGuardrailsChatModel implements INode {
@@ -98,7 +79,7 @@ class ChatNemoGuardrailsChatModel implements INode {
     credential: INodeParams
     inputs: INodeParams[]
 
-    constructor() { 
+    constructor() {
         this.label = 'Chat Nemo Guardrails'
         this.name = 'chatNemoGuardrails'
         this.version = 1.0
@@ -107,14 +88,12 @@ class ChatNemoGuardrailsChatModel implements INode {
         this.category = 'Chat Models'
         this.description = 'Access models through the Nemo Guardrails API'
         this.baseClasses = [this.type, ...getBaseClasses(ChatNemoGuardrailsModel)]
-
         this.inputs = [
             {
                 label: 'Configuration ID',
                 name: 'configurationId',
                 type: 'string',
                 optional: false
-                
             },
             {
                 label: 'Base URL',
@@ -123,26 +102,18 @@ class ChatNemoGuardrailsChatModel implements INode {
                 optional: false
             }
         ]
-
-
     }
 
     async init(nodeData: INodeData, _: string, options: ICommonObject): Promise<any> {
         const configurationId = nodeData.inputs?.configurationId
         const baseUrl = nodeData.inputs?.baseUrl
-
-
         const obj: Partial<ChatNemoGuardrailsInput> = {
             configurationId: configurationId,
             baseUrl: baseUrl
         }
-
         const model = new ChatNemoGuardrailsModel({ id: nodeData.id, fields: obj })
         return model
-
-    }   
-
-
+    }
 }
 
 module.exports = { nodeClass: ChatNemoGuardrailsChatModel }

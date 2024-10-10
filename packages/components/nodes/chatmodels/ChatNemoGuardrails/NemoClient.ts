@@ -1,7 +1,4 @@
-/*
-import { AbortableAsyncIterator, parseJSON, post } 
-import 'whatwg-fetch'
-*/
+import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages'
 
 export interface Config {
     baseUrl: string
@@ -13,44 +10,61 @@ export class ClientConfig implements Config {
     configurationId: string
 
     constructor(baseUrl: string, configurationId: string) {
-        this.baseUrl = baseUrl;
-        this.configurationId = configurationId;
+        this.baseUrl = baseUrl
+        this.configurationId = configurationId
     }
-    
 }
 
 export class NemoClient {
-  private readonly config: Config
+    private readonly config: Config
 
+    constructor(baseUrl: string, configurationId: string) {
+        this.config = new ClientConfig(baseUrl, configurationId)
+    }
 
-  constructor(baseUrl: string, configurationId: string) {
-    this.config = new ClientConfig(baseUrl,configurationId)
-  }
+    getRoleFromMessage(message: BaseMessage): string {
+        if (message instanceof HumanMessage || message instanceof SystemMessage) {
+            return 'user'
+        }
 
-  async chat(): Promise<any> {
+        //AIMessage, ToolMessage, FunctionMessage
+        return 'assistant'
+    }
 
-    var myHeaders = new Headers();
-    myHeaders.append("Content-Type", "application/json");
+    getContentFromMessage(message: BaseMessage): string {
+        return message.content.toString()
+    }
 
-    var raw = JSON.stringify({
-        "config_id": this.config.configurationId,
-        "messages": [
-          {
-            "role": "user",
-            "content": "Hello! What can you do for me?"
-          }
-        ]
-      });
-      
-      var requestOptions = {
-          method: 'POST',
-          body: raw,
-          headers: myHeaders
-      };
-      
-      return await fetch(`${this.config.baseUrl}/v1/chat/completions`, requestOptions)
-        .then(response => response.text())
-        .catch(error => console.log('error', error));
+    buildBody(messages: BaseMessage[], configurationId: string): any {
+        const bodyMessages = messages.map((message) => {
+            return {
+                role: this.getRoleFromMessage(message),
+                content: this.getContentFromMessage(message)
+            }
+        })
 
-  }
+        const body = {
+            config_id: configurationId,
+            messages: bodyMessages
+        }
+
+        return body
+    }
+
+    async chat(messages: BaseMessage[]): Promise<AIMessage[]> {
+        const headers = new Headers()
+        headers.append('Content-Type', 'application/json')
+
+        const body = this.buildBody(messages, this.config.configurationId)
+
+        const requestOptions = {
+            method: 'POST',
+            body: JSON.stringify(body),
+            headers: headers
+        }
+
+        return await fetch(`${this.config.baseUrl}/v1/chat/completions`, requestOptions)
+            .then((response) => response.json())
+            .then((body) => body.messages.map((message: any) => new AIMessage(message.content)))
+    }
 }
